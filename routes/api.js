@@ -1,30 +1,34 @@
 var express = require('express');
-var config = require('../config');
 var router = express.Router();
 
+var config = require('../config');
+
 const mongoose = require('mongoose');
-mongoose.connect(config.mongoDbUri);
+mongoose.connect(config.mongoDbUri, { 
+  useNewUrlParser: true, 
+  useUnifiedTopology: true
+});
 const Models = require('../models/models');
 
-//read shortened url by id
-router.get('/url/:shortName', function(req, res) {
+//read shortened url by shortName
+router.get('/url/:shortName', async (req, res) => {
   var result = await Models.ShortenedUrl.findOne({ shortName: req.params.shortName }).exec();
 
   if (result === null) {
-    throw new Error('short url not found.');
+    console.log('Url not found.');
   }
 
   res.status(200).send(JSON.stringify(result));
 });
 
 //create shortened url
-router.post('/url', function(req, res) {
-  var dto = JSON.parse(req.body);
+router.post('/url', async (req, res) => {
+  var dto = req.body;
 
   var result = await Models.ShortenedUrl.findOne({ shortName: dto.shortName }).exec();
   
-  if (result === null) {
-    throw new Error('short url already in use.');
+  if (result !== null) {
+    res.status(500).send('Short url already in use.');
   }
 
   var expiry = new Date(Date.now());
@@ -36,7 +40,9 @@ router.post('/url', function(req, res) {
     expiryDate: expiry
   });
 
-  newUrl.save();
+  newUrl.save((err, doc) => {
+    console.log(`saved: ${doc}; err: ${err}`);
+  });
 
   res.status(200);
   res.send();
