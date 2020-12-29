@@ -14,7 +14,7 @@ router.get('/:shortName', async (req, res) => {
   var result = await Models.ShortenedUrl.findOne({ shortName: req.params.shortName }).exec();
 
   if (result === null) {
-    res.status(404).send('Short url not found.');
+    res.redirect('/');
   }
   
   res.redirect(result.longUrl);
