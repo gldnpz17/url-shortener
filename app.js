@@ -5,11 +5,13 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var childProcess = require('child_process');
 
 var indexRouter = require('./routes/index');
 var apiRouter = require('./routes/api');
-var shortenerRouter = require('./routes/shortener');
 const { stringify } = require('querystring');
+const config = require('./config');
+const { stderr } = require('process');
 
 var app = express();
 
@@ -22,10 +24,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'client-app', 'build')));
+if (config.environment === 'production') {
+  app.use(express.static(path.join(__dirname, 'client-app', 'build')));
+}
 
-app.use('/', shortenerRouter);
-app.use('/', indexRouter);
+if (config.environment === 'production') {
+  app.use('/', indexRouter);
+}
 app.use('/api', apiRouter);
 
 // catch 404 and forward to error handler
@@ -41,11 +46,17 @@ app.use(function(err, req, res, next) {
 
   // render the error page
   res.status(err.status || 500);
-  res.send(JSON.stringify(err));
+  res.send(`${err.status};${err};${err.stack}`);
 });
 
-app.listen(3100, () => {
-  console.log('Server started.')
-});
+if (config.environment === 'production') {
+  app.listen(80, () => {
+    console.log('Server started on port 80');
+  });
+} else {
+  app.listen(4000, () => {
+    console.log('Server started on port 4000');
+  });
+}
 
 module.exports = app;
