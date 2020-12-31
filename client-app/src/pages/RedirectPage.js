@@ -21,7 +21,7 @@ const RedirectPage = () => {
 
   return (
     <>
-      <h1 className="text-center">Redirecting...</h1>
+      <h1 className="text-center">Redirecting</h1>
       <h3 className="text-center">short.gldnpz.com</h3>
     </>
   )

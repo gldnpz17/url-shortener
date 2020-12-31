@@ -28,7 +28,7 @@ router.post('/url', async (req, res) => {
   var result = await Models.ShortenedUrl.findOne({ shortName: dto.shortName }).exec();
   
   if (result !== null) {
-    res.status(500).send('Short url already in use.');
+    res.status(500).send(JSON.stringify({error: 'Short url already in use.'}));
   }
 
   var expiry = new Date(Date.now());
