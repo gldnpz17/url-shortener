@@ -10,12 +10,34 @@ mongoose.connect(config.mongoDbUri, {
 });
 const Models = require('../models/models');
 
+function validateLongUrl(value) {
+  if (value === '' || value === null) {
+    return false;
+  }
+
+  var urlRegex = /^(ht|f)tp(s?)\:\/\/[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&amp;%\$#_]*)?$/;
+  var isValid = urlRegex.test(value);
+
+  return isValid;
+}
+
+function validateShortName(value) {
+  if (value === '' || value === null) {
+    return false;
+  }
+
+  var shortNameRegex = /^[a-zA-Z0-9]([\(\)a-zA-Z0-9\.\_\-])*$/;
+  var isValid = shortNameRegex.test(value);
+
+  return isValid;
+}
+
 //read shortened url by shortName
 router.get('/url/:shortName', async (req, res) => {
   var result = await Models.ShortenedUrl.findOne({ shortName: req.params.shortName }).exec();
 
   if (result === null) {
-    console.log('Url not found.');
+    res.status(500).send(JSON.stringify('Short URL not found.'));
   }
 
   res.status(200).send(JSON.stringify(result));
@@ -28,7 +50,15 @@ router.post('/url', async (req, res) => {
   var result = await Models.ShortenedUrl.findOne({ shortName: dto.shortName }).exec();
   
   if (result !== null) {
-    res.status(500).send(JSON.stringify({error: 'Short url already in use.'}));
+    res.status(500).send(JSON.stringify({error: 'Short URL already in use.'}));
+  }
+
+  if (validateLongUrl(dto.longUrl) === false) {
+    res.status(500).send(JSON.stringify({error: 'Invalid long URL.'}));
+  }
+
+  if (validateShortName(dto.shortName) === false) {
+    res.status(500).send(JSON.stringify({error: 'Invalid Short URL.'}));
   }
 
   var expiry = new Date(Date.now());
