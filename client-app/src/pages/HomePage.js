@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Card, Col, Container, Form, FormControl, InputGroup, Jumbotron, Row } from "react-bootstrap";
 import styled from "styled-components";
+import ValidatedFormGroup from "../components/ValidatedFormGroup";
 import delay from "../helper/delay";
 
 const StyledBrandDiv = styled.div`
@@ -158,13 +159,13 @@ const StyledButton = styled(Button)`
 `;
 
 const StyledFormControl = styled(Form.Control)`
-  border-color: ${props => props.theme.secondary};
+  border-color: ${props => props.theme.secondaryDark};
   border-width: 0.1rem;
   height: 2.5em;
 `;
 
 const StyledInputGroupText = styled(InputGroup.Text)`
-  border-color: ${props => props.theme.secondary};
+  border-color: ${props => props.theme.secondaryDark};
   background-color: ${props => props.theme.secondaryLight};
   border-width: 0.1rem;
   border-right-width: 0rem;
@@ -177,7 +178,12 @@ const StyledPath = styled.path`
 
 const HomePage = () => {
   const [shortName, setShortName] = useState("");
+  const [shortNameIsValid, setShortNameIsValid] = useState(null);
+  const [shortNameMessage, setShortNameMessage] = useState("");
+
   const [longUrl, setLongUrl] = useState("");
+  const [longUrlIsValid, setLongUrlIsValid] = useState(null);
+  const [longUrlMessage, setLongUrlMessage] = useState("");
 
   useEffect(() => {
     const playEntranceAnim = async () => {
@@ -193,40 +199,99 @@ const HomePage = () => {
     playEntranceAnim();
   }, []);
 
-  const createShortenedUrl = async () => {
-    await playSuccessAnimation();
-    setShortName("");
+  const resetState = () => {
     setLongUrl("");
+    setLongUrlIsValid(null);
+    setLongUrlMessage("");
 
-    var response = await fetch('/api/url', {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        shortName: shortName,
-        longUrl: longUrl,
-      })
-    });
+    setShortName("");
+    setShortNameIsValid(null);
+    setShortNameMessage("");
+  };
 
-    if (response.status === 200) {
-      await playSuccessAnimation();
-    } else {
-      window.alert(`${response.status}:${(await response.json()).error}`);
+  const createShortenedUrl = async () => {
+    checkLongUrlValidity(longUrl);
+    checkShortNameValidity(shortName);
+
+    if (longUrlIsValid && shortNameIsValid) {
+      try {  
+        var response = await fetch('/api/url', {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            shortName: shortName,
+            longUrl: longUrl,
+          })
+        });
+      } catch(err) {
+        window.alert("Uh oh. Something went wrong.");
+        resetState();
+      }
+
+      if (response.status === 200) {
+        await playSuccessAnimation();
+      } else {
+        window.alert(`${response.status}:${(await response.json()).error ?? response.statusText}`);
+        resetState();
+      }
     }
   }
 
   const playSuccessAnimation = async () => {
     var elements = document.getElementsByClassName("success-animatable");
 
-    for (var x = 0; x < elements.length; x++){
+    for (var x = 0; x < elements.length; x++) {
       elements[x].classList.add("success-anim-active");
     }
 
-    await delay(3000);
-  
+    await delay(1500);
+
+    resetState();
+
+    await delay(1500);
+    
     for (var x = 0; x < elements.length; x++){
       elements[x].classList.remove("success-anim-active");
+    }
+  };
+
+  const checkLongUrlValidity = (value) => {
+    if (value === "") {
+      setLongUrlIsValid(false);
+      setLongUrlMessage("Required field");
+      return;
+    }
+
+    var urlRegex = /^(ht|f)tp(s?)\:\/\/[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&amp;%\$#_]*)?$/;
+    var isValid = urlRegex.test(value);
+
+    setLongUrlIsValid(isValid);
+
+    if (isValid) {
+      setLongUrlMessage("OK");
+    } else {
+      setLongUrlMessage("Not a valid URL");
+    }
+  }
+
+  const checkShortNameValidity = (value) => {
+    if (value === "") {
+      setShortNameIsValid(false);
+      setShortNameMessage("Required field");
+      return;
+    }
+
+    var shortNameRegex = /^[a-zA-Z0-9]([\(\)a-zA-Z0-9\.\_\-])*$/;
+    var isValid = shortNameRegex.test(value);
+
+    setShortNameIsValid(isValid);
+
+    if (isValid) {
+      setShortNameMessage("OK");
+    } else {
+      setShortNameMessage("Not a valid short URL");
     }
   }
 
@@ -235,12 +300,16 @@ const HomePage = () => {
       <Row className="w-100 m-0 align-self-center justify-content-center">
         <Col className="col-12 col-lg-10 col-xl-8 mx-auto">
           <StyledBrandDiv>
-            <h1 className="text-center mb-0 display-5">short.gldnpz.com</h1>
+            <h1 className="text-center mb-0 display-5"><span>short.</span>gldnpz.com</h1>
             <h5 className="text-center mb-4 display-5">the not-so-short url shortener</h5>
           </StyledBrandDiv>
           <StyledCard className="success-animatable entrance-animatable entrance-anim-active">
             <Card.Body>
-              <div id="success-card-body" style={{zIndex: "2", position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%) rotateY(180deg)"}}  className="success-animatable">
+              <div 
+                id="success-card-body" 
+                style={{zIndex: "2", position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%) rotateY(180deg)"}} 
+                className="success-animatable"
+              >
                 <svg style={{width: "7rem", height: "7rem"}} viewBox="0 0 24 24" className="d-block m-auto">
                   <StyledPath d="M12 2C6.5 2 2 6.5 2 12S6.5 22 12 22 22 17.5 22 12 17.5 2 12 2M10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z" />
                 </svg>
@@ -248,23 +317,27 @@ const HomePage = () => {
               </div>
               <div id="form-card-body" style={{zIndex: "1"}} className="success-animatable">
                 <Form>
-                  <Form.Group controlId="formLongUrl">
-                    <Form.Label style={{fontWeight: "bold"}}>Long URL</Form.Label>
+                  <ValidatedFormGroup label="Long URL" isValid={longUrlIsValid} message={longUrlMessage}>
                     <StyledFormControl type="longUrl" placeholder="https://example.com/path" value={longUrl} onChange={(e) => {
                       setLongUrl(e.target.value);
+
+                      checkLongUrlValidity(e.target.value);
                     }}/>
-                  </Form.Group>
-                  <Form.Group controlId="formShortUrl">
-                    <Form.Label style={{fontWeight: "bold"}}>Short URL</Form.Label>
+                  </ValidatedFormGroup>
+
+                  <ValidatedFormGroup label="Short URL" isValid={shortNameIsValid} message={shortNameMessage}>
                     <InputGroup>
                       <InputGroup.Prepend>
                         <StyledInputGroupText>short.gldnpz.com/</StyledInputGroupText>
                       </InputGroup.Prepend>
                       <StyledFormControl type="shortUrl" placeholder="example" value={shortName} onChange={(e) => {
                         setShortName(e.target.value);
-                        }}/>
+
+                        checkShortNameValidity(e.target.value);
+                      }}/>
                     </InputGroup>
-                  </Form.Group>
+                  </ValidatedFormGroup>
+
                   <div className="d-flex justify-content-center">
                     <StyledButton style={{width: "7rem"}} onClick={createShortenedUrl}>save</StyledButton>
                   </div>
