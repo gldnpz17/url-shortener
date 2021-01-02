@@ -25,7 +25,7 @@ function validateShortName(value) {
   return isValid;
 }
 
-//read shortened url by shortName
+// Read shortened url by shortName.
 router.get('/url/:shortName', async (req, res) => {
   var result = await Models.ShortenedUrl.findOne({ shortName: req.params.shortName }).exec();
 
@@ -41,7 +41,7 @@ router.get('/url/:shortName', async (req, res) => {
   res.status(200).send(JSON.stringify(result));
 });
 
-//create shortened url
+// Create shortened url.
 router.post('/url', async (req, res) => {
   var dto = req.body;
 
@@ -74,6 +74,19 @@ router.post('/url', async (req, res) => {
 
   res.status(200);
   res.send();
+});
+
+// Check if short url has been used.
+router.get('/url/check-availability', async (req, res) => {
+  var dto = req.body;
+
+  var result = await Models.ShortenedUrl.find({shortName: dto.shortName});
+
+  if (result === null) {
+    res.status(200).send(JSON.stringify({isAvailable: true}));
+  } else {
+    res.status(200).send(JSON.stringify({isAvailable: false}));
+  }
 });
 
 module.exports = router;
