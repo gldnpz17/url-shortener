@@ -77,10 +77,8 @@ router.post('/url', async (req, res) => {
 });
 
 // Check if short url has been used.
-router.get('/url/check-availability', async (req, res) => {
-  var dto = req.body;
-
-  var result = await Models.ShortenedUrl.find({shortName: dto.shortName});
+router.get('/url/check-availability/:shortName', async (req, res) => {
+  var result = await Models.ShortenedUrl.findOne({shortName: req.params.shortName});
 
   if (result === null) {
     res.status(200).send(JSON.stringify({isAvailable: true}));

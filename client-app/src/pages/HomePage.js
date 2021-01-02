@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Button, Card, Col, Container, Form, FormControl, InputGroup, Jumbotron, Row } from "react-bootstrap";
+import { Button, Card, Col, Container, Form, FormControl, InputGroup, Jumbotron, Row, Spinner } from "react-bootstrap";
 import styled from "styled-components";
 import ValidatedFormGroup from "../components/ValidatedFormGroup";
+import ValidityStatusEnum from "../enums/ValidityStatus";
 import delay from "../helper/delay";
 
 const StyledBrandDiv = styled.div`
@@ -11,6 +12,38 @@ const StyledBrandDiv = styled.div`
   @keyframes brand-entrance-anim {
     0%, 10% {
       opacity: 0;
+    }
+  }
+`;
+
+const StyledSubmitDiv = styled.div`
+  & #submit-button {
+    visibility: visible;
+    opacity: 100;
+
+    transition-duration: 0.5s;
+  }
+
+  & #submit-spinner {
+    visibility: hidden;
+    opacity: 0;
+
+    transition-duration: 0.5s;
+  }
+
+  &.submit-anim-active {
+    & #submit-button {
+      visibility: hidden;
+      opacity: 0;
+
+      transition-duration: 0.5s;
+    }
+
+    & #submit-spinner {
+      visibility: visible;
+      opacity: 100;
+
+      transition-duration: 0.5s;
     }
   }
 `;
@@ -176,14 +209,20 @@ const StyledPath = styled.path`
   fill: ${props => props.theme.primary};
 `;
 
+const StyledSpinner = styled(Spinner)`
+  color: ${props => props.theme.primary}
+`;
+
 const HomePage = () => {
   const [shortName, setShortName] = useState("");
-  const [shortNameIsValid, setShortNameIsValid] = useState(null);
+  const [shortNameValidity, setShortNameValidity] = useState(null);
   const [shortNameMessage, setShortNameMessage] = useState("");
 
   const [longUrl, setLongUrl] = useState("");
-  const [longUrlIsValid, setLongUrlIsValid] = useState(null);
+  const [longUrlValidity, setLongUrlValidity] = useState(null);
   const [longUrlMessage, setLongUrlMessage] = useState("");
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const playEntranceAnim = async () => {
@@ -199,21 +238,45 @@ const HomePage = () => {
     playEntranceAnim();
   }, []);
 
+  useEffect(() => {
+    let cancellationToken = {cancel: false};
+
+    const checkValidity = async () => {
+      await checkShortNameValidity(shortName, cancellationToken);
+    };
+
+    if (!(shortName === "" && shortNameValidity === null)) {
+      checkValidity();
+    }
+
+    return () => {
+      cancellationToken.cancel = true;
+    };
+  }, [shortName]);
+
   const resetState = () => {
+    setLongUrlValidity(null);
     setLongUrl("");
-    setLongUrlIsValid(null);
     setLongUrlMessage("");
 
+    
+    setShortNameValidity(null);
     setShortName("");
-    setShortNameIsValid(null);
     setShortNameMessage("");
   };
 
   const createShortenedUrl = async () => {
-    checkLongUrlValidity(longUrl);
-    checkShortNameValidity(shortName);
+    setIsSubmitting(true);
+    enableSubmitTransition();
 
-    if (longUrlIsValid && shortNameIsValid) {
+    await delay(1000);
+
+    if (longUrl === null || shortName === null) {
+      await checkLongUrlValidity(longUrl);
+      await checkShortNameValidity(shortName);
+    }
+
+    if (longUrlValidity === ValidityStatusEnum.valid && shortNameValidity === ValidityStatusEnum.valid) {
       try {  
         var response = await fetch('/api/url', {
           method: "POST",
@@ -237,6 +300,9 @@ const HomePage = () => {
         resetState();
       }
     }
+
+    setIsSubmitting(false);
+    disableSubmitTransition();
   }
 
   const playSuccessAnimation = async () => {
@@ -257,9 +323,21 @@ const HomePage = () => {
     }
   };
 
+  const enableSubmitTransition = async () => {
+    var elements = document.getElementsByClassName("submit-animatable");
+
+    elements[0].classList.add("submit-anim-active");
+  }
+
+  const disableSubmitTransition = async () => {
+    var elements = document.getElementsByClassName("submit-animatable");
+
+    elements[0].classList.remove("submit-anim-active");
+  }
+
   const checkLongUrlValidity = (value) => {
     if (value === "") {
-      setLongUrlIsValid(false);
+      setLongUrlValidity(ValidityStatusEnum.invalid);
       setLongUrlMessage("Required field");
       return;
     }
@@ -267,31 +345,56 @@ const HomePage = () => {
     var urlRegex = /^(ht|f)tp(s?)\:\/\/[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&amp;%\$#_]*)?$/;
     var isValid = urlRegex.test(value);
 
-    setLongUrlIsValid(isValid);
-
     if (isValid) {
       setLongUrlMessage("OK");
+      setLongUrlValidity(ValidityStatusEnum.valid);
     } else {
       setLongUrlMessage("Not a valid URL");
+      setLongUrlValidity(ValidityStatusEnum.invalid);
     }
   }
 
-  const checkShortNameValidity = (value) => {
+  const checkShortNameValidity = async (value, cancellationToken) => {
     if (value === "") {
-      setShortNameIsValid(false);
+      setShortNameValidity(ValidityStatusEnum.invalid);
       setShortNameMessage("Required field");
       return;
     }
 
     var shortNameRegex = /^[a-zA-Z0-9]([\(\)a-zA-Z0-9\.\_\-])*$/;
-    var isValid = shortNameRegex.test(value);
-
-    setShortNameIsValid(isValid);
-
-    if (isValid) {
-      setShortNameMessage("OK");
-    } else {
+    if (!shortNameRegex.test(value)) {
+      setShortNameValidity(ValidityStatusEnum.invalid);
       setShortNameMessage("Not a valid short URL");
+      return;
+    }
+
+    setShortNameValidity(ValidityStatusEnum.neutral);
+    setShortNameMessage("checking short url availability...");
+    var response = await fetch(`api/url/check-availability/${value}`, {
+      method: "GET",
+      headers: {
+        "Content-Type" : "application/json"
+      }
+    });
+
+    if (response.status === 200) {
+      var body = await response.json();
+
+      if (!body.isAvailable && !(cancellationToken?.cancel)) {
+        setShortNameValidity(ValidityStatusEnum.invalid);
+        setShortNameMessage("Short url taken. Try something else");
+        return;
+      }
+    } else {
+      if (!(cancellationToken?.cancel)) {
+        window.alert(`${response.status}:${(await response.json()).error ?? response.statusText}`);
+        resetState();
+      }
+    }
+
+    if (!(cancellationToken?.cancel)) {
+      setShortNameValidity(ValidityStatusEnum.valid);
+      setShortNameMessage("OK");
     }
   }
 
@@ -317,30 +420,35 @@ const HomePage = () => {
               </div>
               <div id="form-card-body" style={{zIndex: "1"}} className="success-animatable">
                 <Form>
-                  <ValidatedFormGroup label="Long URL" isValid={longUrlIsValid} message={longUrlMessage}>
-                    <StyledFormControl type="longUrl" placeholder="https://example.com/path" value={longUrl} onChange={(e) => {
+                  <ValidatedFormGroup label="Long URL" validity={longUrlValidity} message={longUrlMessage}>
+                    <StyledFormControl type="longUrl" readOnly={isSubmitting} placeholder="https://example.com/path" value={longUrl} onChange={(e) => {
                       setLongUrl(e.target.value);
 
                       checkLongUrlValidity(e.target.value);
                     }}/>
                   </ValidatedFormGroup>
 
-                  <ValidatedFormGroup label="Short URL" isValid={shortNameIsValid} message={shortNameMessage}>
+                  <ValidatedFormGroup label="Short URL" validity={shortNameValidity} message={shortNameMessage}>
                     <InputGroup>
                       <InputGroup.Prepend>
                         <StyledInputGroupText>short.gldnpz.com/</StyledInputGroupText>
                       </InputGroup.Prepend>
-                      <StyledFormControl type="shortUrl" placeholder="example" value={shortName} onChange={(e) => {
+                      <StyledFormControl type="shortUrl" readOnly={isSubmitting} placeholder="example" value={shortName} onChange={(e) => {
                         setShortName(e.target.value);
-
-                        checkShortNameValidity(e.target.value);
                       }}/>
                     </InputGroup>
                   </ValidatedFormGroup>
 
-                  <div className="d-flex justify-content-center">
-                    <StyledButton style={{width: "7rem"}} onClick={createShortenedUrl}>save</StyledButton>
-                  </div>
+                  <StyledSubmitDiv className="d-flex justify-content-center submit-animatable">
+                    <div id="submit-spinner" className="align-self-center" style={{zIndex: "1", position: "absolute"}}>
+                      <StyledSpinner animation="border"/>
+                    </div>
+                    <div id="submit-button" style={{zIndex: "2"}}>
+                      <StyledButton disabled={isSubmitting} style={{width: "7rem"}} onClick={createShortenedUrl}>
+                        Save
+                      </StyledButton>
+                    </div>
+                  </StyledSubmitDiv>
                 </Form>
               </div>
             </Card.Body>
