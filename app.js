@@ -1,5 +1,13 @@
 require('dotenv').config();
 
+var config = require('./config');
+
+const mongoose = require('mongoose');
+mongoose.connect(config.mongoDbUri, { 
+  useNewUrlParser: true, 
+  useUnifiedTopology: true
+});
+
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -7,10 +15,13 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var childProcess = require('child_process');
 
+var cron = require('cron');
+
+const Models = require('./models/models');
+
 var indexRouter = require('./routes/index');
 var apiRouter = require('./routes/api');
 const { stringify } = require('querystring');
-const config = require('./config');
 const { stderr } = require('process');
 
 var app = express();
@@ -58,5 +69,15 @@ if (config.environment === 'production') {
     console.log('Server started on port 4000');
   });
 }
+
+//routine cleanup
+var urlCleanUpJob = new cron.CronJob(
+  '1 0 * * *',
+  async () => {
+    await Models.ShortenedUrl.deleteMany({expiryDate: {$gt: new Date(Date.now())} });
+  },
+);
+
+urlCleanUpJob.start();
 
 module.exports = app;

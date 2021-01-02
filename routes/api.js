@@ -1,13 +1,6 @@
 var express = require('express');
 var router = express.Router();
 
-var config = require('../config');
-
-const mongoose = require('mongoose');
-mongoose.connect(config.mongoDbUri, { 
-  useNewUrlParser: true, 
-  useUnifiedTopology: true
-});
 const Models = require('../models/models');
 
 function validateLongUrl(value) {
@@ -40,6 +33,11 @@ router.get('/url/:shortName', async (req, res) => {
     res.status(500).send(JSON.stringify('Short URL not found.'));
   }
 
+  if (new Date(Date.now()) > result.expiryDate) {
+    await Models.ShortenedUrl.deleteOne({ id: result.id});
+    res.status(500).send(JSON.stringify({error: "url expired"}));
+  }
+
   res.status(200).send(JSON.stringify(result));
 });
 
@@ -62,7 +60,7 @@ router.post('/url', async (req, res) => {
   }
 
   var expiry = new Date(Date.now());
-  expiry.setDate(expiry.getDate() + 30);
+  expiry.setDate(expiry.getDate() + 90);
 
   var newUrl = new Models.ShortenedUrl({
     shortName: dto.shortName,
