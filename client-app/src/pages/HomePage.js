@@ -315,7 +315,10 @@ const HomePage = () => {
 
     await delay(2500);
 
-    if (longUrl === null || shortName === null) {
+    console.log(longUrl);
+    console.log(shortName);
+
+    if (longUrl === "" || shortName === "") {
       await checkLongUrlValidity(longUrl);
       await checkShortNameValidity(shortName);
     }
