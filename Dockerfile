@@ -9,4 +9,14 @@ RUN npm install --production
 
 COPY . .
 
+#build client app
+WORKDIR /app/client-app
+
+RUN npm install --production
+
+RUN npm run build
+
+#run app
+WORKDIR /app
+
 CMD [ "node", "app.js" ]

@@ -19,7 +19,6 @@ var cron = require('cron');
 
 const Models = require('./models/models');
 
-var indexRouter = require('./routes/index');
 var apiRouter = require('./routes/api');
 const { stringify } = require('querystring');
 const { stderr } = require('process');
@@ -34,15 +33,18 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
-if (config.environment === 'production') {
-  app.use(express.static(path.join(__dirname, 'client-app', 'build')));
-}
+
+app.use('/api', apiRouter);
 
 if (config.environment === 'production') {
-  app.use('/', indexRouter);
+  app.use(express.static(path.join(__dirname, 'client-app', 'build')));
+} else {
+  app.use(express.static(path.join(__dirname, 'public')));
 }
-app.use('/api', apiRouter);
+
+app.use('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client-app', 'build', 'index.html'));
+});
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -54,6 +56,8 @@ app.use(function(err, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
+
+  console.log(JSON.stringify(err.stack));
 
   // render the error page
   res.status(err.status || 500);
