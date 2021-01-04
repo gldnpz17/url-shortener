@@ -1,6 +1,9 @@
 require('dotenv').config();
 
 var config = require('./config');
+if (config.port === null) {
+ config.port === 80   
+}
 
 const mongoose = require('mongoose');
 mongoose.connect(config.mongoDbUri, { 
@@ -64,15 +67,9 @@ app.use(function(err, req, res, next) {
   res.send(`${err.status};${err};${err.stack}`);
 });
 
-if (config.environment === 'production') {
-  app.listen(80, () => {
-    console.log('Server started on port 80');
-  });
-} else {
-  app.listen(4000, () => {
-    console.log('Server started on port 4000');
-  });
-}
+app.listen(config.port, () => {
+  console.log(`Server started on port ${config.port}`);
+});
 
 //routine cleanup
 var urlCleanUpJob = new cron.CronJob(

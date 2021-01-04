@@ -30,12 +30,14 @@ router.get('/url/:shortName', async (req, res) => {
   var result = await Models.ShortenedUrl.findOne({ shortName: req.params.shortName }).exec();
 
   if (result === null) {
-    res.status(500).send(JSON.stringify('Short URL not found.'));
+    res.status(500).send(JSON.stringify({error:'Short URL not found.'}));
+    return;
   }
 
   if (new Date(Date.now()) > result.expiryDate) {
     await Models.ShortenedUrl.deleteOne({ id: result.id});
-    res.status(500).send(JSON.stringify({error: "url expired"}));
+    res.status(500).send(JSON.stringify({error: 'Url expired.'}));
+    return;
   }
 
   res.status(200).send(JSON.stringify(result));
@@ -49,14 +51,17 @@ router.post('/url', async (req, res) => {
   
   if (result !== null) {
     res.status(500).send(JSON.stringify({error: 'Short URL already in use.'}));
+    return;
   }
 
   if (validateLongUrl(dto.longUrl) === false) {
     res.status(500).send(JSON.stringify({error: 'Invalid long URL.'}));
+    return;
   }
 
   if (validateShortName(dto.shortName) === false) {
     res.status(500).send(JSON.stringify({error: 'Invalid Short URL.'}));
+    return;
   }
 
   var expiry = new Date(Date.now());
@@ -72,8 +77,7 @@ router.post('/url', async (req, res) => {
     console.log(`saved: ${doc}; err: ${err}`);
   });
 
-  res.status(200);
-  res.send();
+  res.status(200).send();
 });
 
 // Check if short url has been used.
