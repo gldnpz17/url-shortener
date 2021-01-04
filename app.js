@@ -78,7 +78,7 @@ if (config.environment === 'production') {
 var urlCleanUpJob = new cron.CronJob(
   '1 0 * * *',
   async () => {
-    await Models.ShortenedUrl.deleteMany({expiryDate: {$gt: new Date(Date.now())} });
+    await Models.ShortenedUrl.deleteMany({expiryDate: {$lt: new Date(Date.now())} });
   },
 );
 
