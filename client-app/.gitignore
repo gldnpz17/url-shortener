@@ -21,3 +21,13 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# ==========
+# VSCode gitignore
+# ==========
+.vs
+.vscode
+*.code-workspace
+
+# Local History for Visual Studio Code
+.history/
