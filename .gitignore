@@ -122,8 +122,8 @@ dist
 # ==========
 # VSCode gitignore
 # ==========
-/.vs
-/.vscode
+.vs
+.vscode
 *.code-workspace
 
 # Local History for Visual Studio Code
